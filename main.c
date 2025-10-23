@@ -13,8 +13,7 @@ bool backface_culling = true;
 triangle_t *triangles_to_render = NULL;
 
 vec3_t camera_position = { .x=0, .y=0, .z=0 };
-
-float fov_factor = 640;
+mat4_t proj_matrix;
 
 bool is_running = false;
 int previous_frame_time = 0;
@@ -37,20 +36,20 @@ void setup(void) {
 		window_height
 	);
 
+	//initialize perspective projection matrix
+
+	float fov = M_PI / 3.0;
+	float aspect_ratio = (float) window_width / (float) window_height;
+	float znear = 0.1;
+	float zfar = 100.0;
+
+	proj_matrix = mat4_make_perspective(fov, aspect_ratio, znear, zfar);
+
 	//load_obj_file_data("../Models/cube_triangulated.obj");
 	load_cube_mesh_data();
 
 }
 
-/*
-vec2_t project(vec3_t point) {
-	vec2_t projected_point = {
-		.x = (fov_factor * point.x) / point.z,
-		.y = (fov_factor * point.y) / point.z
-	};
-	return projected_point;
-}
-*/
 
 void process_input(void) {
 
@@ -82,6 +81,7 @@ void process_input(void) {
 
 }
 
+
 void update(void) {
 	
 	int time_to_wait = FRAME_TARGET_TIME - (SDL_GetTicks() - previous_frame_time); //FTT 33 ms
@@ -95,12 +95,12 @@ void update(void) {
 	triangles_to_render = NULL;
 
 	mesh.rotation.x += 0.005;
-	mesh.rotation.y += 0.005;
-	mesh.rotation.z += 0.005;
+	//mesh.rotation.y += 0.005;
+	//mesh.rotation.z += 0.005;
 
-	mesh.scale.x += 0.002;
-	mesh.scale.y += 0.002;
-	mesh.scale.z += 0.002;
+	//mesh.scale.x += 0.002;
+	//mesh.scale.y += 0.002;
+	//mesh.scale.z += 0.002;
 
 	//mesh.translation.x += 0.002;
 	//mesh.translation.x += 0.01;
@@ -111,8 +111,8 @@ void update(void) {
 	mat4_t translation_matrix = mat4_make_translation(mesh.translation.x, mesh.translation.y, mesh.translation.z);
 
 	mat4_t rotation_matrix_x = mat4_make_rotation_x(mesh.rotation.x);
-	mat4_t rotation_matrix_y = mat4_make_rotation_y(mesh.rotation.z);
-	mat4_t rotation_matrix_z = mat4_make_rotation_z(mesh.rotation.y);
+	mat4_t rotation_matrix_y = mat4_make_rotation_y(mesh.rotation.y);
+	mat4_t rotation_matrix_z = mat4_make_rotation_z(mesh.rotation.z);
 
 	int num_faces = array_length(mesh.faces);
 
@@ -170,14 +170,18 @@ void update(void) {
 
 		}
 		
-		vec2_t projected_points[3];
+		vec4_t projected_points[3];
 
 		for (int j = 0; j < 3; j++) {
 
-			projected_points[j] = project(vec3_from_vec4(transformed_vertices[j]));
+			projected_points[j] = mat4_mul_vec4_project(proj_matrix, transformed_vertices[j]);
 
-			projected_points[j].x += (window_width / 2);
-			projected_points[j].y += (window_height / 2);
+			projected_points[j].x *= (window_width / 2.0);
+			projected_points[j].y *= (window_height / 2.0);
+
+			projected_points[j].x += (window_width  / 2.0);
+			projected_points[j].y += (window_height / 2.0);
+
 
 		}
 
@@ -217,8 +221,6 @@ void update(void) {
 	}
 
 }
-
-
 
 
 void render(void) {
@@ -305,4 +307,6 @@ int main(int argc, char* args[]) {
 	return 0;
 
 }
+
+
 
