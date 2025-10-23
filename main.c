@@ -42,6 +42,7 @@ void setup(void) {
 
 }
 
+/*
 vec2_t project(vec3_t point) {
 	vec2_t projected_point = {
 		.x = (fov_factor * point.x) / point.z,
@@ -49,6 +50,7 @@ vec2_t project(vec3_t point) {
 	};
 	return projected_point;
 }
+*/
 
 void process_input(void) {
 
