@@ -111,6 +111,7 @@ void draw_rect(int x, int y, int width, int height, uint32_t color) {
 }
 */
 
+
 void draw_rect(int x, int y, int width, int height, uint32_t color) {
 	for (int i = 0; i < width; i++) {
 		for (int j = 0; j < height; j++) {
@@ -150,3 +151,5 @@ void destroy_window(void) {
 	SDL_Quit();
 
 }
+
+

@@ -7,21 +7,19 @@
 #include "mesh.h"
 #include "array.h"
 #include "matrix.h"
-
-bool backface_culling = true;
+#include "light.h"
 
 triangle_t *triangles_to_render = NULL;
-
-vec3_t camera_position = { .x=0, .y=0, .z=0 };
-mat4_t proj_matrix;
 
 bool is_running = false;
 int previous_frame_time = 0;
 
+vec3_t camera_position = { .x=0, .y=0, .z=0 };
+mat4_t proj_matrix;
 
 void setup(void) {
 
-	render_method = RENDER_WIRE;
+	render_method = RENDER_FILL_TRIANGLE;
 	cull_method = CULL_BACKFACE;
 
 	// Allocate memory to hold the color buffer
@@ -39,14 +37,14 @@ void setup(void) {
 	//initialize perspective projection matrix
 
 	float fov = M_PI / 3.0;
-	float aspect_ratio = (float) window_width / (float) window_height;
+	float aspect_ratio = (float) window_height / (float) window_width;
 	float znear = 0.1;
 	float zfar = 100.0;
 
 	proj_matrix = mat4_make_perspective(fov, aspect_ratio, znear, zfar);
 
-	//load_obj_file_data("../Models/cube_triangulated.obj");
-	load_cube_mesh_data();
+	load_obj_file_data("../Models/f22.obj");
+	//load_cube_mesh_data();
 
 }
 
@@ -63,7 +61,6 @@ void process_input(void) {
 		case SDL_KEYDOWN:
 			if (event.key.keysym.sym == SDLK_ESCAPE)
 				is_running = false;
-
 			if (event.key.keysym.sym == SDLK_1)
 				render_method = RENDER_WIRE_VERTEX;
 			if (event.key.keysym.sym == SDLK_2)
@@ -133,9 +130,9 @@ void update(void) {
 			mat4_t world_matrix = mat4_identity();
 
 			world_matrix = mat4_mul_mat4(scale_matrix, world_matrix);
-			world_matrix = mat4_mul_mat4(rotation_matrix_x, world_matrix);
-			world_matrix = mat4_mul_mat4(rotation_matrix_y, world_matrix);
 			world_matrix = mat4_mul_mat4(rotation_matrix_z, world_matrix);
+			world_matrix = mat4_mul_mat4(rotation_matrix_y, world_matrix);
+			world_matrix = mat4_mul_mat4(rotation_matrix_x, world_matrix);
 			world_matrix = mat4_mul_mat4(translation_matrix, world_matrix);
 
 			transformed_vertex = mat4_mul_vec4(world_matrix, transformed_vertex);
@@ -144,26 +141,26 @@ void update(void) {
 
 		}
 
+		
+		vec3_t vector_a = vec3_from_vec4(transformed_vertices[0]);
+		vec3_t vector_b = vec3_from_vec4(transformed_vertices[1]);
+		vec3_t vector_c = vec3_from_vec4(transformed_vertices[2]);
+
+		vec3_t vector_ab = vec3_sub(vector_b, vector_a);
+		vec3_t vector_ac = vec3_sub(vector_c, vector_a);
+
+		vec3_normalize(&vector_ab);
+		vec3_normalize(&vector_ac);
+
+		vec3_t normal = vec3_cross(vector_ab, vector_ac);
+		vec3_normalize(&normal);
+
+		vec3_t camera_ray = vec3_sub(camera_position, vector_a);
+
+		float dot_normal_camera = vec3_dot(normal, camera_ray);
+
+
 		if (cull_method == CULL_BACKFACE) {
-
-
-			vec3_t vector_a = vec3_from_vec4(transformed_vertices[0]);
-			vec3_t vector_b = vec3_from_vec4(transformed_vertices[1]);
-			vec3_t vector_c = vec3_from_vec4(transformed_vertices[2]);
-
-			vec3_t vector_ab = vec3_sub(vector_b, vector_a);
-			vec3_t vector_ac = vec3_sub(vector_c, vector_a);
-
-			vec3_normalize(&vector_ab);
-			vec3_normalize(&vector_ac);
-
-			vec3_t normal = vec3_cross(vector_ab, vector_ac);
-			vec3_normalize(&normal);
-
-			vec3_t camera_ray = vec3_sub(camera_position, vector_a);
-
-			float dot_normal_camera = vec3_dot(normal, camera_ray);
-
 			if (dot_normal_camera < 0) {
 				continue;
 			}
@@ -187,13 +184,21 @@ void update(void) {
 
 		float avg_depth = (transformed_vertices[0].z + transformed_vertices[1].z + transformed_vertices[2].z) / 3.0;
 
+		//calculate the shade intensity based on face normal alignment 
+
+		float light_intensity_factor = -vec3_dot(normal, light.direction);
+
+		//calculate the triangle color based on the light angle
+
+		uint32_t triangle_color = light_apply_intensity(mesh_face.color, light_intensity_factor);
+
 		triangle_t projected_triangle = {
 			.points = {
 				{ projected_points[0].x, projected_points[0].y },
 				{ projected_points[1].x, projected_points[1].y },
 				{ projected_points[2].x, projected_points[2].y },
 			},
-			.color = mesh_face.color,
+			.color = triangle_color,
 			.avg_depth = avg_depth
 
 		};
@@ -226,7 +231,7 @@ void update(void) {
 void render(void) {
 
 	//SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-	//SDL_RenderClear(renderer);
+	SDL_RenderClear(renderer);
 	
 	
 	int num_triangles = array_length(triangles_to_render);
@@ -234,8 +239,6 @@ void render(void) {
 	for (int i = 0; i < num_triangles; i++) {
 
 		triangle_t triangle = triangles_to_render[i];
-
-
 
 		if (render_method == RENDER_FILL_TRIANGLE || render_method == RENDER_FILL_TRIANGLE_WIRE) {
 
@@ -307,6 +310,10 @@ int main(int argc, char* args[]) {
 	return 0;
 
 }
+
+
+
+
 
 
 
